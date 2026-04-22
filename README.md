@@ -13,6 +13,56 @@ For IR op types, LLM backends, and sandbox rules, see [`docs/ARCHITECTURE.md`](d
 
 For a command-level walkthrough of running the sample program through the pipeline, see [`docs/HelloWorld.md`](docs/HelloWorld.md).
 
+## Pipeline File Tree
+
+This is the core pipeline layout, with the files that own each stage:
+
+```text
+pretend_compiler/
+├── cli.py                     # `pretend-run` / `pretend-models` entrypoints
+├── settings.py                # Loads llm/env configuration
+├── llm_factory.py             # Builds the shared chat model backend
+├── state.py                   # LangGraph state passed between stages
+├── graph.py                   # Pipeline wiring and retry edges
+├── agents/
+│   ├── precompiler.py         # pretend-precompiler agent
+│   ├── compiler.py            # pretend-compiler agent
+│   ├── heuristic_ir.py        # Fallback IR for simple loops
+│   ├── schemas.py             # Structured outputs for LLM stages
+│   ├── vm_runner.py           # Deterministic pretend VM
+│   └── vm_tools.py            # Sandbox-aware VM tool implementations
+├── models_registry.py         # Pinned model definitions
+└── models_pull.py             # Downloads/configures local GGUF models
+```
+
+### Which agent owns which stage
+
+1. **CLI + model bootstrap**
+   `pretend_compiler/cli.py`, `pretend_compiler/settings.py`, and `pretend_compiler/llm_factory.py` prepare the run: load config, choose local vs hosted backend, read the source file, and invoke the graph.
+
+2. **Pipeline orchestration**
+   `pretend_compiler/graph.py` is the traffic controller. It connects `precompile -> compile -> vm`, and also routes optional `write_plan`, `write_link`, `dry_run`, `abort`, and retry behavior.
+
+3. **Precompile / validation stage**
+   `pretend_compiler/agents/precompiler.py` contains the **pretend-precompiler** agent. This is the first LLM stage: it checks whether the input plausibly matches the declared language and produces the high-level compilation plan.
+
+4. **Compile / lowering stage**
+   `pretend_compiler/agents/compiler.py` contains the **pretend-compiler** agent. This is the second LLM stage: it turns the plan plus source text into the project IR (`ir_ops`).
+
+5. **Compile fallback path**
+   `pretend_compiler/agents/heuristic_ir.py` is attached to the compile stage, not as a separate pipeline node, but as a deterministic fallback when the LLM claims success yet returns empty IR for very simple loop-print programs.
+
+6. **VM / execution stage**
+   `pretend_compiler/agents/vm_runner.py` contains the **pretend-vm** runtime. This stage is **not** an LLM agent; it deterministically executes the IR emitted by the compiler stage.
+
+7. **VM tool boundary**
+   `pretend_compiler/agents/vm_tools.py` is attached to the VM stage. It provides the sandboxed filesystem, environment, stdin, clock, RNG, and optional network tools that IR `tool` ops can call.
+
+8. **Shared contracts between stages**
+   `pretend_compiler/agents/schemas.py` defines the structured outputs used by the LLM agents, and `pretend_compiler/state.py` defines the state object that moves through the whole pipeline.
+
+In short: **`precompiler.py` owns validation + plan, `compiler.py` owns IR generation, `vm_runner.py` owns execution, and `graph.py` decides how control moves between them.**
+
 ## TL;DR
 
 From the repo root:
