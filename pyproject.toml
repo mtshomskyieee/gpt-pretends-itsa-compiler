@@ -1,0 +1,42 @@
+[project]
+name = "pretend-compiler-cli"
+version = "0.1.0"
+description = "LangGraph pretend compiler — compile and run arbitrary languages via LLM-orchestrated agents"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain-core>=0.3.45",
+    "langchain-community>=0.3.16",
+    "langchain-openai>=0.3.0",
+    "langgraph>=0.2.65",
+    "llama-cpp-python>=0.3.0",
+    "huggingface-hub>=0.26.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "typer>=0.15.0",
+]
+
+[project.optional-dependencies]
+ollama = ["langchain-ollama>=0.3.0"]
+
+[project.scripts]
+pretend-run = "pretend_compiler.cli:main_run"
+pretend-models = "pretend_compiler.cli:main_models"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pretend_compiler"]
+
+[tool.pytest.ini_options]
+markers = [
+    "local_llm: requires local GGUF or Ollama",
+    "slow: slow integration tests",
+    "hosted: calls hosted OpenAI-compatible API (needs OPENAI_API_KEY)",
+]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = ["pytest>=8.0.0"]
