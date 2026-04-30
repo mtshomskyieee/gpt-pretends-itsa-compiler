@@ -88,14 +88,14 @@ First, it gives the system a clear execution boundary. The model does not execut
 
 Second, it makes behavior testable. The VM can be unit-tested independently of any model backend, which is necessary if this kind of system is going to be analyzed seriously.
 
-Safety and Control
+# Safety and Control
 Although this repository is exploratory, it is not casual about execution.
 
 File operations are resolved relative to a configured sandbox directory. Path escapes are rejected. Network access is disabled unless --allow-network is set. Tool calls are restricted to known names. IR is normalized before execution so malformed or low-quality model output is less likely to create confusing behavior.
 
 These controls do not make the project equivalent to a hardened operating-system sandbox, but they do show the right architectural instinct: model output should pass through deterministic checks and constrained execution paths before it is trusted to do anything observable.
 
-Handling Model Failure
+# Handling Model Failure
 One of the more valuable parts of the project is that it treats model failure as a normal engineering concern.
 
 If the compiler claims success but produces empty IR, that is treated as an error. If the VM encounters a recoverable fault, the graph can retry compilation with fault context. For trivial examples, the codebase also includes a heuristic fallback for simple print-loop patterns when a local model fails to produce usable IR.
